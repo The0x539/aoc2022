@@ -63,7 +63,7 @@ fn what_year_is_it() -> i32 {
 }
 
 fn main() -> Result<()> {
-    let cwd = std::env::current_dir()?;
+    let cwd = std::env::current_dir().context("no cwd")?;
 
     let day = cwd
         .iter()
@@ -77,7 +77,8 @@ fn main() -> Result<()> {
 
     let year = what_year_is_it();
 
-    let cookie = std::fs::read_to_string(crate_dir().context("crate dir fail")?.join("session"))?;
+    let cookie = std::fs::read_to_string(crate_dir().context("crate dir fail")?.join("session"))
+        .context("couldn't read session")?;
     let client = Client::new();
 
     let http_get = |url: &str| -> Result<String> {
@@ -120,7 +121,7 @@ fn main() -> Result<()> {
 
     println!("expected test output: {test_output_1} {test_output_2}");
 
-    let real_input = http_get(&(base_url + "/input"))?;
+    let real_input = http_get(&(base_url + "/input")).context("input get fail")?;
 
     std::fs::write(cwd.join("test.txt"), test_input)?;
     std::fs::write(cwd.join("test.out.txt"), test_output)?;
