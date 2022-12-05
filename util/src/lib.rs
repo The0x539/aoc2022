@@ -53,24 +53,42 @@ pub fn run_alt<Parser, Part1, Part2, In, Out>(
     println!("{output2}");
 }
 
-pub fn test<Parser, Part1, Part2, In, Out>(
+pub fn test<Parser, Part, In, Out>(
     test_data: &'static str,
     output_data: &'static str,
     parser: Parser,
-    part1: Part1,
-    part2: Part2,
+    part: Part,
+    part2: bool,
 ) where
     Parser: FnMut(&str) -> In,
-    Part1: FnOnce(&[In]) -> Out,
-    Part2: FnOnce(&[In]) -> Out,
+    Part: FnOnce(&[In]) -> Out,
     Out: Debug + FromStr + PartialEq,
     Out::Err: Debug,
 {
     let input = parse_input_lines(test_data, parser);
-    let (x, y) = parse_output::<Out>(output_data);
+    let xy = parse_output::<Out>(output_data);
+    let x = if part2 { xy.1 } else { xy.0 };
 
-    assert_eq!(part1(&input), x);
-    assert_eq!(part2(&input), y);
+    assert_eq!(part(&input), x);
+}
+
+pub fn test_alt<Parser, Part, In, Out>(
+    test_data: &'static str,
+    output_data: &'static str,
+    parser: Parser,
+    part: Part,
+    part2: bool,
+) where
+    Parser: FnOnce(&'static str) -> In,
+    Part: FnOnce(&In) -> Out,
+    Out: Debug + FromStr + PartialEq,
+    Out::Err: Debug,
+{
+    let input = parser(test_data);
+    let xy = parse_output::<Out>(output_data);
+    let x = if part2 { xy.1 } else { xy.0 };
+
+    assert_eq!(part(&input), x);
 }
 
 pub fn parse_output<T>(output_data: &'static str) -> (T, T)
@@ -109,19 +127,13 @@ macro_rules! register {
         #[cfg(test)]
         #[test]
         fn test_part1() {
-            let input = $crate::parse_input_lines(TEST_INPUT, $parser);
-            let (x, _y) = $crate::parse_output(TEST_OUTPUT);
-
-            assert_eq!($part1(&input), x);
+            $crate::$test(TEST_INPUT, TEST_OUTPUT, $parser, $part1, false);
         }
 
         #[cfg(test)]
         #[test]
         fn test_part2() {
-            let input = $crate::parse_input_lines(TEST_INPUT, $parser);
-            let (_x, y) = $crate::parse_output(TEST_OUTPUT);
-
-            assert_eq!($part2(&input), y);
+            $crate::$test(TEST_INPUT, TEST_OUTPUT, $parser, $part2, true);
         }
     };
 }
