@@ -60,7 +60,7 @@ pub fn test<Parser, Part, In, Out>(
     part: Part,
     part2: bool,
 ) where
-    Parser: FnMut(&str) -> In,
+    Parser: FnMut(&'static str) -> In,
     Part: FnOnce(&[In]) -> Out,
     Out: Debug + FromStr + PartialEq,
     Out::Err: Debug,
