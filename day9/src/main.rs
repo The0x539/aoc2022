@@ -37,6 +37,31 @@ struct Pos {
     y: i32,
 }
 
+fn take_step(head: &mut Pos, dir: Dir) {
+    match dir {
+        Dir::Up => head.y -= 1,
+        Dir::Left => head.x -= 1,
+        Dir::Down => head.y += 1,
+        Dir::Right => head.x += 1,
+    }
+}
+
+fn catch_up(head: &Pos, tail: &mut Pos) {
+    let (dy, dx) = (head.y - tail.y, head.x - tail.x);
+
+    if dx.abs() > 1 {
+        tail.x += dx.signum();
+        if dy != 0 {
+            tail.y += dy.signum();
+        }
+    } else if dy.abs() > 1 {
+        tail.y += dy.signum();
+        if dx != 0 {
+            tail.x += dx.signum();
+        }
+    }
+}
+
 fn part1(n: &[In]) -> Out {
     let mut head = Pos::default();
     let mut tail = Pos::default();
@@ -46,26 +71,8 @@ fn part1(n: &[In]) -> Out {
 
     for &step in n {
         for _ in 0..step.count {
-            match step.dir {
-                Dir::Up => head.y -= 1,
-                Dir::Left => head.x -= 1,
-                Dir::Down => head.y += 1,
-                Dir::Right => head.x += 1,
-            }
-
-            let (dy, dx) = (head.y - tail.y, head.x - tail.x);
-            if dx.abs() > 1 {
-                tail.x += dx.signum();
-                if dy.abs() > 0 {
-                    tail.y += dy.signum();
-                }
-            } else if dy.abs() > 1 {
-                tail.y += dy.signum();
-                if dx.abs() > 0 {
-                    tail.x += dx.signum();
-                }
-            }
-
+            take_step(&mut head, step.dir);
+            catch_up(&head, &mut tail);
             visited.insert(tail);
         }
     }
@@ -82,53 +89,12 @@ fn part2(n: &[In]) -> Out {
 
     for &step in n {
         for _ in 0..step.count {
-            let head = &mut links[0];
-
-            match step.dir {
-                Dir::Up => head.y -= 1,
-                Dir::Left => head.x -= 1,
-                Dir::Down => head.y += 1,
-                Dir::Right => head.x += 1,
+            take_step(&mut links[9], step.dir);
+            for i in (1..links.len()).rev() {
+                let [.., tail, head] = &mut links[..=i] else { panic!() };
+                catch_up(head, tail);
             }
-
-            for i in 1..10 {
-                let (dy, dx) = (links[i - 1].y - links[i].y, links[i - 1].x - links[i].x);
-                if dx.abs() > 1 {
-                    links[i].x += dx.signum();
-                    if dy.abs() > 0 {
-                        links[i].y += dy.signum();
-                    }
-                } else if dy.abs() > 1 {
-                    links[i].y += dy.signum();
-                    if dx.abs() > 0 {
-                        links[i].x += dx.signum();
-                    }
-                }
-            }
-
-            /*
-            for y in -8..7 {
-                for x in -13..13 {
-                    let pos = Pos { x, y };
-
-                    let c: String;
-                    if links[0] == pos {
-                        c = "H".into();
-                    } else if let Some(i) = links.iter().position(|p| *p == pos) {
-                        c = i.to_string();
-                    } else if visited.contains(&Pos { x, y }) {
-                        c = "#".to_owned();
-                    } else {
-                        c = ".".to_owned();
-                    }
-                    print!("{c}");
-                }
-                println!();
-            }
-            println!();
-            */
-
-            visited.insert(links[9]);
+            visited.insert(links[0]);
         }
     }
 
