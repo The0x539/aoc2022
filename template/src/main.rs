@@ -3,6 +3,7 @@
 use util::*;
 
 type N = i32;
+type P = Pos<N>;
 
 type In = N;
 type Out = usize;
