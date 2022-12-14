@@ -1,12 +1,67 @@
 use std::fmt::{Debug, Display};
+use std::ops::{Add, AddAssign};
 use std::str::FromStr;
 
+pub fn p<T>(s: &str) -> T
+where
+    T: FromStr,
+    T::Err: Debug,
+{
+    s.parse().unwrap()
+}
+
+#[deprecated]
 pub fn poarse<T>(s: &str) -> T
 where
     T: FromStr,
     T::Err: Debug,
 {
     s.parse().unwrap()
+}
+
+#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pos<N> {
+    pub x: N,
+    pub y: N,
+}
+
+impl<N> Pos<N> {
+    pub fn new(x: N, y: N) -> Self {
+        Self { x, y }
+    }
+
+    pub fn pair(self) -> (N, N) {
+        (self.x, self.y)
+    }
+}
+
+impl<N: Add<Output = N>> Add<(N, N)> for Pos<N> {
+    type Output = Self;
+    fn add(self, (x, y): (N, N)) -> Self::Output {
+        Self {
+            x: self.x + x,
+            y: self.y + y,
+        }
+    }
+}
+
+impl<N: AddAssign<N>> AddAssign<(N, N)> for Pos<N> {
+    fn add_assign(&mut self, (x, y): (N, N)) {
+        self.x += x;
+        self.y += y;
+    }
+}
+
+impl<N> From<(N, N)> for Pos<N> {
+    fn from((x, y): (N, N)) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<N> From<Pos<N>> for (N, N) {
+    fn from(p: Pos<N>) -> Self {
+        (p.x, p.y)
+    }
 }
 
 pub fn parse_input_lines<T, F: FnMut(&'static str) -> T>(input_data: &'static str, f: F) -> Vec<T> {
@@ -97,7 +152,7 @@ where
     T::Err: Debug,
 {
     let (a, b) = output_data.split_once("\n").unwrap();
-    let [x, y] = [a, b].map(poarse::<T>);
+    let [x, y] = [a, b].map(p::<T>);
     (x, y)
 }
 

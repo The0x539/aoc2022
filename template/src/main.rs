@@ -1,8 +1,10 @@
 #![cfg_attr(test, feature(test))]
 
-use util::poarse as p;
+use util::*;
 
-type In = i32;
+type N = i32;
+
+type In = N;
 type Out = usize;
 
 fn parse(s: &'static str) -> In {
