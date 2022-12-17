@@ -4,7 +4,7 @@ use crate::{Node, N};
 use std::cmp::Ordering;
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct State<'a> {
+pub struct State1<'a> {
     graph: &'a Graph,
     pub location: &'static str,
     pub time_elapsed: N,
@@ -12,7 +12,7 @@ pub struct State<'a> {
     pub pressure_released: N,
 }
 
-impl<'a> State<'a> {
+impl<'a> State1<'a> {
     pub fn new(location: &'static str, graph: &'a Graph) -> Self {
         Self {
             graph,
@@ -83,7 +83,7 @@ impl<'a> State<'a> {
     }
 }
 
-impl PartialOrd for State<'_> {
+impl PartialOrd for State1<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.time_elapsed != other.time_elapsed {
             return None;

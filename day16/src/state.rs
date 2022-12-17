@@ -5,6 +5,54 @@ use crate::graph::Keyer;
 use crate::N;
 use std::cmp::Ordering;
 
+pub trait State: PartialOrd + Sized {
+    type Key: Ord;
+    fn key(&self) -> Self::Key;
+    fn time_elapsed(&self) -> N;
+    fn pressure_released(&self) -> N;
+    fn choices(&self, max_time: N) -> Vec<Self>;
+}
+
+impl State for part1::State1<'_> {
+    type Key = (N, &'static str);
+
+    fn key(&self) -> Self::Key {
+        (self.time_elapsed, self.location)
+    }
+
+    fn time_elapsed(&self) -> N {
+        self.time_elapsed
+    }
+
+    fn pressure_released(&self) -> N {
+        self.pressure_released
+    }
+
+    fn choices(&self, max_time: N) -> Vec<Self> {
+        self.choices(max_time)
+    }
+}
+
+impl State for part2::State2<'_> {
+    type Key = (part2::Status, part2::Status);
+
+    fn key(&self) -> Self::Key {
+        (self.human, self.elephant)
+    }
+
+    fn time_elapsed(&self) -> N {
+        self.time_elapsed
+    }
+
+    fn pressure_released(&self) -> N {
+        self.pressure_released
+    }
+
+    fn choices(&self, max_time: N) -> Vec<Self> {
+        self.choices(max_time)
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct SillySet<'a> {
     bits: u64,
