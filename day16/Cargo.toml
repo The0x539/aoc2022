@@ -1,0 +1,9 @@
+[package]
+name = "day0"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fnv = "1.0.7"
+rayon = "1.6.1"
+util = { path = "../util" }
