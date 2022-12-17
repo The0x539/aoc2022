@@ -4,9 +4,8 @@ pub mod part2;
 use crate::graph::Keyer;
 use crate::N;
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone)]
 pub struct SillySet<'a> {
     bits: u64,
     keyer: &'a Keyer,
@@ -40,6 +39,13 @@ impl<'a> SillySet<'a> {
     }
 }
 
+impl PartialEq for SillySet<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        debug_assert!(std::ptr::eq(self.keyer, other.keyer));
+        self.bits == other.bits
+    }
+}
+
 impl PartialOrd for SillySet<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.bits == other.bits {
@@ -56,25 +62,10 @@ impl PartialOrd for SillySet<'_> {
     }
 }
 
-fn silly_comparison(sp: N, op: N, sv: &BTreeSet<&str>, ov: &BTreeSet<&str>) -> Option<Ordering> {
-    if (sv.len() > ov.len() && sp < op) || (sv.len() < ov.len() && sp > op) {
-        return None;
-    }
+fn silly_comparison(sp: N, op: N, sv: &SillySet, ov: &SillySet) -> Option<Ordering> {
+    debug_assert!(std::ptr::eq(sv, ov));
 
-    let mut foo = false;
-    let mut bar = false;
-    for item in sv.symmetric_difference(ov) {
-        match (sv.contains(item), ov.contains(item)) {
-            (true, false) => foo = true,
-            (false, true) => bar = true,
-            (true, true) | (false, false) => panic!(),
-        }
-        if foo && bar {
-            return None;
-        }
-    }
-
-    match (sv.len().cmp(&ov.len()), sp.cmp(&op)) {
+    match (sv.partial_cmp(&ov)?, sp.cmp(&op)) {
         (Ordering::Less, Ordering::Less)
         | (Ordering::Less, Ordering::Equal)
         | (Ordering::Equal, Ordering::Less) => Some(Ordering::Less),

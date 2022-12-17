@@ -1,15 +1,14 @@
-use super::silly_comparison;
+use super::{silly_comparison, SillySet};
 use crate::graph::Graph;
 use crate::{Node, N};
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct State<'a> {
     graph: &'a Graph,
     pub location: &'static str,
     pub time_elapsed: N,
-    opened_valves: BTreeSet<&'static str>,
+    opened_valves: SillySet<'a>,
     pub pressure_released: N,
 }
 
@@ -19,13 +18,13 @@ impl<'a> State<'a> {
             graph,
             location,
             time_elapsed: 0,
-            opened_valves: Default::default(),
+            opened_valves: SillySet::new(&graph.keyer),
             pressure_released: 0,
         }
     }
 
     fn release_pressure(&mut self, time: N) {
-        for name in &self.opened_valves {
+        for name in self.opened_valves.iter() {
             self.pressure_released += self.graph.flow(name) * time;
         }
     }

@@ -1,9 +1,8 @@
 use crate::graph::Graph;
 use crate::{Node, N};
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
 
-use super::silly_comparison;
+use super::{silly_comparison, SillySet};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Status {
@@ -23,13 +22,13 @@ impl Status {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct State2<'a> {
     graph: &'a Graph,
     pub human: Status,
     pub elephant: Status,
     pub time_elapsed: N,
-    opened_valves: BTreeSet<&'static str>,
+    opened_valves: SillySet<'a>,
     pub pressure_released: N,
 }
 
@@ -47,7 +46,7 @@ impl<'a> State2<'a> {
             human: Status::At(location),
             elephant: Status::At(location),
             time_elapsed: 0,
-            opened_valves: Default::default(),
+            opened_valves: SillySet::new(&graph.keyer),
             pressure_released: 0,
         }
     }
@@ -75,7 +74,7 @@ impl<'a> State2<'a> {
     }
 
     fn apply_update(&mut self, human_action: Action, elephant_action: Action) {
-        for name in &self.opened_valves {
+        for name in self.opened_valves.iter() {
             self.pressure_released += self.graph.flow(name);
         }
 
@@ -109,10 +108,9 @@ impl<'a> State2<'a> {
         self.time_elapsed += 1;
     }
 
-    fn with_update(&self, human_action: Action, elephant_action: Action) -> Self {
-        let mut this = self.clone();
-        this.apply_update(human_action, elephant_action);
-        this
+    fn with_update(mut self, human_action: Action, elephant_action: Action) -> Self {
+        self.apply_update(human_action, elephant_action);
+        self
     }
 
     fn should_open(&self, node: &Node) -> bool {
@@ -168,58 +166,6 @@ impl<'a> State2<'a> {
 
         choices
     }
-
-    /*
-
-    pub fn choices(&self, max_time: N) -> Vec<Self> {
-        assert!(self.time_elapsed < max_time);
-
-        if self.opened_valves.len() == self.graph.0.len() {
-            let mut wait = self.clone();
-            while wait.time_elapsed < max_time {
-                wait.update(Action::Idle, Action::Idle);
-            }
-        }
-
-        let mut my_actions = vec![];
-
-        if !self.opened_valves.contains(&self.location) && self.current_node().flow > 0 {
-            my_actions.push(Action::Open);
-        }
-
-        for (name, _) in &self.current_node().adjacencies {
-            if self.graph.0[name].is_leaf() && self.opened_valves.contains(name) {
-                continue;
-            }
-            my_actions.push(Action::Move(name));
-        }
-
-        let mut elephant_actions = vec![];
-
-        if !self.opened_valves.contains(&self.elephant) && self.elephant_node().flow > 0 {
-            elephant_actions.push(Action::Open);
-        }
-
-        for (name, _) in &self.elephant_node().adjacencies {
-            if self.graph.0[name].is_leaf() && self.opened_valves.contains(name) {
-                continue;
-            }
-            elephant_actions.push(Action::Move(name));
-        }
-
-        let mut choices = Vec::with_capacity(my_actions.len() * elephant_actions.len());
-
-        for x in my_actions {
-            for &y in &elephant_actions {
-                choices.push(self.with_update(x, y));
-            }
-        }
-
-        prune(&mut choices);
-
-        choices
-    }
-    */
 }
 
 impl PartialOrd for State2<'_> {

@@ -62,37 +62,39 @@ fn part1(n: &[In]) -> Out {
 
     let max_time = 30;
 
-    loop {
-        let n = states.values().flatten().count();
-        println!("{n} states, {} finished", finished_states.len());
-        if n == 0 {
-            break;
-        }
-
+    for i in 1.. {
         let all_choices = states
             .into_par_iter()
             .flat_map(|(_key, group)| group)
             .flat_map(|state| state.choices(max_time))
             .collect::<Vec<_>>();
 
-        let mut new_states = BTreeMap::<_, Vec<State>>::new();
+        states = BTreeMap::new();
 
         for choice in all_choices {
             if choice.time_elapsed == max_time {
                 finished_states.push(choice);
             } else {
-                new_states
+                states
                     .entry((choice.time_elapsed, choice.location))
                     .or_default()
                     .push(choice);
             }
         }
 
-        new_states
-            .par_iter_mut()
-            .for_each(|(_key, group)| prune(group));
+        states.par_iter_mut().for_each(|(_key, group)| prune(group));
 
-        states = new_states;
+        let n = states.values().flatten().count();
+        if n == 0 {
+            break;
+        } else {
+            print!("i={i}: {n} states");
+            let nf = finished_states.len();
+            if nf > 0 {
+                print!(", {nf} finished");
+            }
+            println!();
+        }
     }
 
     finished_states
@@ -107,47 +109,41 @@ fn part2(n: &[In]) -> Out {
     graph.collapse_edges();
 
     let initial = State2::new("AA", &graph);
-    let mut states = BTreeMap::<_, Vec<State2>>::new();
+    let mut states = BTreeMap::new();
     states.insert((initial.human, initial.elephant), vec![initial]);
 
     let mut finished_states: Vec<State2> = vec![];
 
     let max_time = 26;
 
-    let mut i = 0;
-
-    loop {
-        let n = states.values().flatten().count();
-        println!("t={i}: {n} states");
-        i += 1;
-        if n == 0 {
-            break;
-        }
-
+    for i in 1.. {
         let all_choices = states
             .into_par_iter()
             .flat_map(|(_key, group)| group)
             .flat_map(|state| state.choices(max_time))
             .collect::<Vec<_>>();
 
-        let mut new_states = BTreeMap::<_, Vec<State2>>::new();
+        states = BTreeMap::new();
 
         for choice in all_choices {
             if choice.time_elapsed == max_time {
                 finished_states.push(choice);
             } else {
-                new_states
+                states
                     .entry((choice.human, choice.elephant))
                     .or_default()
                     .push(choice);
             }
         }
 
-        new_states
-            .par_iter_mut()
-            .for_each(|(_key, group)| prune(group));
+        states.par_iter_mut().for_each(|(_key, group)| prune(group));
 
-        states = new_states;
+        let n = states.values().flatten().count();
+        if n == 0 {
+            break;
+        } else {
+            println!("t={i}: {n} states");
+        }
     }
 
     finished_states
