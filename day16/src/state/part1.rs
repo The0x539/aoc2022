@@ -1,15 +1,15 @@
 use super::silly_comparison;
 use crate::graph::Graph;
 use crate::{Node, N};
-use fnv::FnvHashSet as HashSet;
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 #[derive(Clone, PartialEq)]
 pub struct State<'a> {
     graph: &'a Graph,
     pub location: &'static str,
     pub time_elapsed: N,
-    opened_valves: HashSet<&'static str>,
+    opened_valves: BTreeSet<&'static str>,
     pub pressure_released: N,
 }
 
@@ -19,7 +19,7 @@ impl<'a> State<'a> {
             graph,
             location,
             time_elapsed: 0,
-            opened_valves: HashSet::default(),
+            opened_valves: Default::default(),
             pressure_released: 0,
         }
     }
@@ -36,7 +36,7 @@ impl<'a> State<'a> {
     }
 
     fn current_node(&self) -> &Node {
-        &self.graph.0[self.location]
+        &self.graph.map[self.location]
     }
 
     fn with(&self, f: impl FnOnce(&mut Self)) -> Self {
@@ -64,7 +64,7 @@ impl<'a> State<'a> {
     pub fn choices(&self, max_time: N) -> Vec<Self> {
         assert!(self.time_elapsed < max_time);
 
-        if self.opened_valves.len() == self.graph.0.len() {
+        if self.opened_valves.len() == self.graph.map.len() {
             return vec![self.with(Self::idle)];
         }
 

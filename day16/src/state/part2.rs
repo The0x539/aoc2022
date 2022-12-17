@@ -1,18 +1,35 @@
 use crate::graph::Graph;
-use crate::prune;
 use crate::{Node, N};
-use fnv::FnvHashSet as HashSet;
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use super::silly_comparison;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Status {
+    At(&'static str),
+    Towards(&'static str, N),
+}
+
+impl Status {
+    fn tick(&mut self) {
+        if let Status::Towards(dest, dist) = self {
+            assert!(*dist > 0);
+            *dist -= 1;
+            if *dist == 0 {
+                *self = Self::At(dest);
+            }
+        }
+    }
+}
 
 #[derive(Clone, PartialEq)]
 pub struct State2<'a> {
     graph: &'a Graph,
-    pub location: &'static str,
-    pub elephant: &'static str,
+    pub human: Status,
+    pub elephant: Status,
     pub time_elapsed: N,
-    opened_valves: HashSet<&'static str>,
+    opened_valves: BTreeSet<&'static str>,
     pub pressure_released: N,
 }
 
@@ -25,56 +42,134 @@ enum Action {
 
 impl<'a> State2<'a> {
     pub fn new(location: &'static str, graph: &'a Graph) -> Self {
-        for (_, _, len) in graph.edges() {
-            assert_eq!(len, 1);
-        }
-
         Self {
             graph,
-            location,
-            elephant: location,
+            human: Status::At(location),
+            elephant: Status::At(location),
             time_elapsed: 0,
-            opened_valves: HashSet::default(),
+            opened_valves: Default::default(),
             pressure_released: 0,
         }
     }
 
-    fn tick(&mut self) {
+    fn human_location(&self) -> Option<&'static str> {
+        match self.human {
+            Status::At(x) => Some(x),
+            _ => None,
+        }
+    }
+
+    fn human_node(&self) -> Option<&Node> {
+        self.graph.map.get(self.human_location()?)
+    }
+
+    fn elephant_location(&self) -> Option<&'static str> {
+        match self.elephant {
+            Status::At(x) => Some(x),
+            _ => None,
+        }
+    }
+
+    fn elephant_node(&self) -> Option<&Node> {
+        self.graph.map.get(self.elephant_location()?)
+    }
+
+    fn apply_update(&mut self, human_action: Action, elephant_action: Action) {
         for name in &self.opened_valves {
             self.pressure_released += self.graph.flow(name);
         }
-        self.time_elapsed += 1;
-    }
 
-    fn current_node(&self) -> &Node {
-        &self.graph.0[self.location]
-    }
-
-    fn elephant_node(&self) -> &Node {
-        &self.graph.0[self.elephant]
-    }
-
-    fn update(&mut self, action: Action, elephant_action: Action) {
-        self.tick();
-
-        match action {
+        match human_action {
             Action::Idle => (),
-            Action::Open => _ = self.opened_valves.insert(self.location),
-            Action::Move(dest) => self.location = dest,
+            Action::Open => {
+                let location = self.human_location().unwrap();
+                self.opened_valves.insert(location);
+            }
+            Action::Move(dest) => {
+                let node = self.human_node().unwrap();
+                self.human = Status::Towards(dest, node.adjacencies[dest]);
+            }
         }
 
         match elephant_action {
             Action::Idle => (),
-            Action::Open => _ = self.opened_valves.insert(self.elephant),
-            Action::Move(dest) => self.elephant = dest,
+            Action::Open => {
+                let location = self.elephant_location().unwrap();
+                self.opened_valves.insert(location);
+            }
+            Action::Move(dest) => {
+                let node = self.elephant_node().unwrap();
+                self.elephant = Status::Towards(dest, node.adjacencies[dest]);
+            }
         }
+
+        self.elephant.tick();
+        self.human.tick();
+
+        self.time_elapsed += 1;
     }
 
-    fn with_update(&self, action: Action, elephant_action: Action) -> Self {
+    fn with_update(&self, human_action: Action, elephant_action: Action) -> Self {
         let mut this = self.clone();
-        this.update(action, elephant_action);
+        this.apply_update(human_action, elephant_action);
         this
     }
+
+    fn should_open(&self, node: &Node) -> bool {
+        node.flow > 0 && !self.opened_valves.contains(node.name)
+    }
+
+    fn get_actions_for(&self, location: Option<&'static str>, max_time: N) -> Vec<Action> {
+        let mut actions = vec![];
+
+        if let Some(loc) = location {
+            let node = &self.graph.map[loc];
+
+            if self.should_open(node) {
+                actions.push(Action::Open);
+            }
+
+            for (name, dist) in &node.adjacencies {
+                if self.graph.map[name].is_leaf() && self.opened_valves.contains(name) {
+                    continue;
+                }
+
+                if self.time_elapsed + *dist > max_time {
+                    continue;
+                }
+
+                actions.push(Action::Move(name));
+            }
+        }
+
+        if actions.is_empty() {
+            actions.push(Action::Idle);
+        }
+
+        actions
+    }
+
+    pub fn choices(&self, max_time: N) -> Vec<Self> {
+        debug_assert!(self.time_elapsed < max_time);
+
+        if self.opened_valves.len() == self.graph.map.len() {
+            return vec![self.with_update(Action::Idle, Action::Idle)];
+        }
+
+        let human_actions = self.get_actions_for(self.human_location(), max_time);
+        let elephant_actions = self.get_actions_for(self.elephant_location(), max_time);
+
+        let mut choices = Vec::with_capacity(human_actions.len() * elephant_actions.len());
+        for h in human_actions {
+            for &e in &elephant_actions {
+                choices.push(self.with_update(h, e));
+            }
+        }
+
+        choices
+    }
+
+    /*
 
     pub fn choices(&self, max_time: N) -> Vec<Self> {
         assert!(self.time_elapsed < max_time);
@@ -93,6 +188,9 @@ impl<'a> State2<'a> {
         }
 
         for (name, _) in &self.current_node().adjacencies {
+            if self.graph.0[name].is_leaf() && self.opened_valves.contains(name) {
+                continue;
+            }
             my_actions.push(Action::Move(name));
         }
 
@@ -103,6 +201,9 @@ impl<'a> State2<'a> {
         }
 
         for (name, _) in &self.elephant_node().adjacencies {
+            if self.graph.0[name].is_leaf() && self.opened_valves.contains(name) {
+                continue;
+            }
             elephant_actions.push(Action::Move(name));
         }
 
@@ -118,6 +219,7 @@ impl<'a> State2<'a> {
 
         choices
     }
+    */
 }
 
 impl PartialOrd for State2<'_> {
@@ -126,7 +228,7 @@ impl PartialOrd for State2<'_> {
             return None;
         }
 
-        if self.location != other.location {
+        if self.human != other.human {
             return None;
         }
 

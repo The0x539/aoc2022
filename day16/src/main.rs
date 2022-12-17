@@ -54,8 +54,6 @@ fn part1(n: &[In]) -> Out {
     let mut graph = Graph::from_nodes(n);
     graph.collapse_edges();
 
-    std::fs::write("graph.dot", graph.to_string().as_bytes()).unwrap();
-
     let initial = State::new("AA", &graph);
     let mut states = BTreeMap::new();
     states.insert((initial.time_elapsed, initial.location), vec![initial]);
@@ -105,12 +103,12 @@ fn part1(n: &[In]) -> Out {
 }
 
 fn part2(n: &[In]) -> Out {
-    let graph = Graph::from_nodes(n);
-    //collapse_edges(&mut graph);
+    let mut graph = Graph::from_nodes(n);
+    graph.collapse_edges();
 
     let initial = State2::new("AA", &graph);
     let mut states = BTreeMap::<_, Vec<State2>>::new();
-    states.insert((initial.location, initial.elephant), vec![initial]);
+    states.insert((initial.human, initial.elephant), vec![initial]);
 
     let mut finished_states: Vec<State2> = vec![];
 
@@ -139,7 +137,7 @@ fn part2(n: &[In]) -> Out {
                 finished_states.push(choice);
             } else {
                 new_states
-                    .entry((choice.location, choice.elephant))
+                    .entry((choice.human, choice.elephant))
                     .or_default()
                     .push(choice);
             }

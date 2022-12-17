@@ -2,17 +2,46 @@ use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 
 use super::*;
 
+#[derive(PartialEq, Clone)]
+pub struct Keyer {
+    pub(crate) inner: HashMap<&'static str, u64>,
+}
+
+impl Keyer {
+    pub fn get(&self, name: &str) -> u64 {
+        let v = self.inner[name];
+        debug_assert_eq!(v.count_ones(), 1);
+        v
+    }
+
+    fn from_names(names: impl IntoIterator<Item = &'static str>) -> Self {
+        let mut names = Vec::from_iter(names);
+        names.sort();
+        let mut k = 1;
+        let mut inner = HashMap::default();
+        for name in names {
+            inner.insert(name, k);
+            k <<= 1;
+        }
+        Self { inner }
+    }
+}
+
 #[derive(PartialEq)]
-pub struct Graph(pub HashMap<&'static str, Node>);
+pub struct Graph {
+    pub map: HashMap<&'static str, Node>,
+    pub keyer: Keyer,
+}
 
 impl Graph {
     pub fn from_nodes(nodes: &[Node]) -> Self {
         let map = nodes.iter().cloned().map(|n| (n.name, n)).collect();
-        Self(map)
+        let keyer = Keyer::from_names(nodes.iter().map(|n| n.name));
+        Self { map, keyer }
     }
 
     fn find_node_to_remove(&self) -> Option<&'static str> {
-        for (name, node) in &self.0 {
+        for (name, node) in &self.map {
             if node.is_removable() {
                 return Some(name);
             }
@@ -21,7 +50,7 @@ impl Graph {
     }
 
     fn remove_node(&mut self, name: &str) {
-        let node = self.0.remove(name).unwrap();
+        let node = self.map.remove(name).unwrap();
 
         assert_eq!(node.adjacencies.len(), 2);
 
@@ -31,11 +60,11 @@ impl Graph {
 
         let dist_ab = dist_a + dist_b;
 
-        let neighbor_a = self.0.get_mut(name_a).unwrap();
+        let neighbor_a = self.map.get_mut(name_a).unwrap();
         assert_eq!(neighbor_a.adjacencies.remove(name).unwrap(), dist_a);
         neighbor_a.adjacencies.insert(name_b, dist_ab);
 
-        let neighbor_b = self.0.get_mut(name_b).unwrap();
+        let neighbor_b = self.map.get_mut(name_b).unwrap();
         assert_eq!(neighbor_b.adjacencies.remove(name).unwrap(), dist_b);
         neighbor_b.adjacencies.insert(name_a, dist_ab);
     }
@@ -47,7 +76,7 @@ impl Graph {
     }
 
     pub fn nodes(&self) -> impl Iterator<Item = &Node> {
-        self.0.values()
+        self.map.values()
     }
 
     pub fn edges(&self) -> impl Iterator<Item = (&'static str, &'static str, N)> + '_ {
@@ -57,7 +86,7 @@ impl Graph {
     }
 
     pub fn flow(&self, name: &str) -> N {
-        self.0[name].flow
+        self.map[name].flow
     }
 }
 
@@ -65,7 +94,7 @@ impl std::fmt::Display for Graph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "graph G {{")?;
 
-        for node in self.0.values() {
+        for node in self.map.values() {
             let (name, flow) = (node.name, node.flow);
             writeln!(f, "\t{name} [label=\"{name}\\n{flow}\"];")?;
         }
