@@ -10,6 +10,17 @@ where
     s.parse().unwrap()
 }
 
+pub fn ints<T>(s: &str) -> Vec<T>
+where
+    T: FromStr,
+    T::Err: Debug,
+{
+    s.split(|c: char| !c.is_whitespace())
+        .filter(|s| !s.is_empty())
+        .map(p)
+        .collect()
+}
+
 #[deprecated]
 pub fn poarse<T>(s: &str) -> T
 where
