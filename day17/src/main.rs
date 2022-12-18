@@ -11,7 +11,7 @@ type In = Vec<bool>;
 type Out = N;
 
 #[derive(Clone)]
-struct Rock {
+pub struct Rock {
     points: Vec<P>,
 }
 
@@ -77,19 +77,64 @@ fn parse(s: &'static str) -> In {
     s.trim().chars().map(|c| c == '>').collect()
 }
 
+pub fn print_world(world: &World, rock: &Rock, top: N) {
+    for y in (0..top).rev() {
+        print!("|");
+        for x in 0..7 {
+            let pt = P { x, y };
+            let c = if world.contains(&pt) {
+                '#'
+            } else if rock.points.iter().any(|p| *p == pt) {
+                '@'
+            } else {
+                '.'
+            };
+            print!("{c}")
+        }
+        print!("|");
+        println!();
+    }
+    println!("+-------+");
+    println!();
+}
+
+fn fall(mut gas: impl Iterator<Item = bool>, rock: &mut Rock, world: &World) {
+    loop {
+        assert!(rock.right() <= 6);
+        assert!(rock.left() >= 0);
+
+        let right = gas.next().unwrap();
+        if right {
+            if rock.right() < 6 {
+                let shifted = rock.shifted(1, 0);
+                if !shifted.collides_with(&world) {
+                    *rock = shifted;
+                }
+            }
+        } else {
+            if rock.left() > 0 {
+                let shifted = rock.shifted(-1, 0);
+                if !shifted.collides_with(&world) {
+                    *rock = shifted;
+                }
+            }
+        }
+
+        if rock.bottom() <= 0 {
+            break;
+        }
+
+        let shifted = rock.shifted(0, -1);
+        if shifted.collides_with(&world) {
+            break;
+        } else {
+            *rock = shifted;
+        }
+    }
+}
+
 fn part1(n: &In) -> Out {
     let mut world = World::new();
-
-    /*
-    for y in 0..=10000 {
-        world.insert(Pos::new(-1, y));
-        world.insert(Pos::new(7, y));
-    }
-
-    for x in -1..=7 {
-        world.insert(Pos::new(x, -1));
-    }
-    */
 
     let mut gas = std::iter::repeat(n).flatten().copied();
 
@@ -97,77 +142,9 @@ fn part1(n: &In) -> Out {
 
     for mut rock in rock_cycle().take(2022) {
         rock.shift(2, spawn_location);
-
-        /*
-        for y in (0..spawn_location + 5).rev() {
-            print!("|");
-            for x in 0..7 {
-                let pt = P { x, y };
-                let c = if world.contains(&pt) {
-                    '#'
-                } else if rock.points.iter().any(|p| *p == pt) {
-                    '@'
-                } else {
-                    '.'
-                };
-                print!("{c}")
-            }
-            print!("|");
-            println!();
-        }
-        println!("+-------+");
-        println!();
-        */
-
-        loop {
-            assert!(rock.right() <= 6);
-            assert!(rock.left() >= 0);
-
-            let right = gas.next().unwrap();
-            if right {
-                if rock.right() == 6 {
-                    //println!("hit right wall");
-                } else {
-                    let shifted = rock.shifted(1, 0);
-                    if shifted.collides_with(&world) {
-                        //println!("hit rock right");
-                    } else {
-                        //println!("moved right");
-                        rock = shifted;
-                    }
-                }
-            } else {
-                if rock.left() == 0 {
-                    //println!("hit left wall");
-                } else {
-                    let shifted = rock.shifted(-1, 0);
-                    if shifted.collides_with(&world) {
-                        //println!("hit rock left");
-                    } else {
-                        //println!("moved left");
-                        rock = shifted;
-                    }
-                }
-            }
-
-            if rock.bottom() <= 0 {
-                //println!("hit floor\n");
-                spawn_location = spawn_location.max(rock.top() + 4);
-                rock.add_to(&mut world);
-                break;
-            } else {
-                let shifted = rock.shifted(0, -1);
-                if shifted.collides_with(&world) {
-                    //println!("hit rock bottom\n");
-                    spawn_location = spawn_location.max(rock.top() + 4);
-                    rock.add_to(&mut world);
-                    break;
-                } else {
-                    //println!("moved down");
-                    rock = shifted;
-                }
-            }
-        }
+        fall(gas.by_ref(), &mut rock, &world);
+        spawn_location = spawn_location.max(rock.top() + 4);
+        rock.add_to(&mut world);
     }
 
     spawn_location - 3
