@@ -97,7 +97,7 @@ pub fn print_world(world: &World, rock: &Rock, top: N) {
     println!();
 }
 
-fn fall(gas: &mut impl Iterator<Item = bool>, rock: &mut Rock, world: &World) {
+fn fall(mut gas: impl Iterator<Item = bool>, rock: &mut Rock, world: &World) {
     loop {
         assert!(rock.right() <= 6);
         assert!(rock.left() >= 0);
@@ -188,7 +188,7 @@ fn part2(gases: &Vec<bool>) -> Out {
         let n = recurrences.entry(key).or_default();
         *n += 1;
         if *n >= 2 {
-            let snapshot = take_snapshot(&world, spawn_location - 100, spawn_location);
+            let snapshot = take_snapshot(&world, spawn_location - 500, spawn_location);
 
             let snapshot_value = (rock_number, spawn_location);
             if snapshots.get(&key) == Some(&snapshot) {
@@ -207,99 +207,18 @@ fn part2(gases: &Vec<bool>) -> Out {
             }
         }
 
-        loop {
-            assert!(rock.left() >= 0);
-
-            let right = gases[gas_index];
+        let gas_iter = std::iter::from_fn(|| {
+            let v = gases[gas_index];
             gas_index = (gas_index + 1) % gases.len();
-
-            if right {
-                if rock.right() < 6 {
-                    let shifted = rock.shifted(1, 0);
-                    if !shifted.collides_with(&world) {
-                        rock = shifted;
-                    }
-                }
-            } else {
-                if rock.left() > 0 {
-                    let shifted = rock.shifted(-1, 0);
-                    if !shifted.collides_with(&world) {
-                        rock = shifted;
-                    }
-                }
-            }
-
-            if rock.bottom() <= 0 {
-                break;
-            }
-
-            let shifted = rock.shifted(0, -1);
-            if shifted.collides_with(&world) {
-                break;
-            } else {
-                rock = shifted;
-            }
-        }
+            Some(v)
+        });
+        fall(gas_iter, &mut rock, &world);
 
         spawn_location = spawn_location.max(rock.top() + 4);
         rock.add_to(&mut world);
     }
 
     spawn_location + result_offset - 4
-}
-
-fn part2_old(n: &In) -> Out {
-    let mut world = World::new();
-
-    let mut gas = std::iter::repeat(n).flatten().copied();
-
-    let mut spawn_location = 3;
-
-    for mut rock in std::iter::repeat(rocks().into_iter())
-        .flatten()
-        .take(1000000)
-    {
-        rock.shift(2, spawn_location);
-
-        loop {
-            assert!(rock.right() <= 6);
-            assert!(rock.left() >= 0);
-
-            let right = gas.next().unwrap();
-
-            if right {
-                if rock.right() < 6 {
-                    let shifted = rock.shifted(1, 0);
-                    if !shifted.collides_with(&world) {
-                        rock = shifted;
-                    }
-                }
-            } else {
-                if rock.left() > 0 {
-                    let shifted = rock.shifted(-1, 0);
-                    if !shifted.collides_with(&world) {
-                        rock = shifted;
-                    }
-                }
-            }
-
-            if rock.bottom() <= 0 {
-                break;
-            }
-
-            let shifted = rock.shifted(0, -1);
-            if shifted.collides_with(&world) {
-                break;
-            } else {
-                rock = shifted;
-            }
-        }
-
-        spawn_location = spawn_location.max(rock.top() + 4);
-        rock.add_to(&mut world);
-    }
-
-    spawn_location - 3
 }
 
 util::register!(parse, part1, part2, @alt);
