@@ -15,7 +15,7 @@ where
     T: FromStr,
     T::Err: Debug,
 {
-    s.split(|c: char| !c.is_whitespace())
+    s.split(|c: char| !c.is_numeric())
         .filter(|s| !s.is_empty())
         .map(p)
         .collect()
