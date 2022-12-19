@@ -28,16 +28,13 @@ fn parse(s: &'static str) -> In {
     #[cfg(not(test))]
     let lines = s.lines();
 
-    lines
-        .enumerate()
-        .map(|(i, line)| parse_bp(i as N + 1, line))
-        .collect()
+    lines.map(parse_bp).collect()
 }
 
-fn parse_bp(id: N, s: &str) -> Blueprint {
+fn parse_bp(s: &str) -> Blueprint {
     let i = ints(s);
     Blueprint {
-        id,
+        id: i[0],
         ore_cost: i[1],
         clay_cost: i[2],
         obsidian_cost: (i[3], i[4]),
@@ -55,63 +52,23 @@ impl Blueprint {
         states.insert(State::new());
 
         for _i in 0..x {
-            /*
-            println!("{_i}: {}", states.len());
-            let mut vstates = states
-                .into_par_iter()
-                .flat_map(|s| s.choices(self))
-                .collect::<Vec<_>>();
-
-            let foo = vstates.len();
-            prune(&mut vstates);
-            let bar = vstates.len();
-            println!("{foo} -> {bar}");
-            states = vstates.into_iter().collect();
-            */
+            println!("{} {}: {}", self.id, _i, states.len());
             states = states.into_iter().flat_map(|s| s.choices(self)).collect();
         }
 
         states.into_iter().map(|s| s.geodes).max().unwrap()
     }
-}
 
-// doesn't work
-pub fn prune(states: &mut Vec<State>) {
-    if states.iter().all(|s| s.geode_robots == 0) {
-        println!("no geodes yet");
-        return;
-    }
-
-    let mut to_remove = BTreeSet::new();
-    for i in 0..states.len() {
-        if to_remove.contains(&i) {
-            continue;
-        }
-        for j in (i + 1)..states.len() {
-            if to_remove.contains(&j) {
-                continue;
-            }
-
-            if gt(&states[i], &states[j]) {
-                to_remove.insert(j);
-            } else if gt(&states[j], &states[i]) {
-                to_remove.insert(i);
-            }
-        }
-    }
-
-    for i in to_remove.into_iter().rev() {
-        states.remove(i);
-    }
-}
-
-// doesn't work
-fn gt(a: &State, b: &State) -> bool {
-    match (a.geodes.cmp(&b.geodes), a.geode_robots.cmp(&b.geode_robots)) {
-        (Ordering::Greater, Ordering::Greater)
-        | (Ordering::Greater, Ordering::Equal)
-        | (Ordering::Equal, Ordering::Greater) => true,
-        _ => false,
+    pub fn max_ore_cost(&self) -> N {
+        [
+            self.ore_cost,
+            self.clay_cost,
+            self.obsidian_cost.0,
+            self.geode_cost.0,
+        ]
+        .into_iter()
+        .max()
+        .unwrap()
     }
 }
 
@@ -176,13 +133,27 @@ impl State {
     fn choices(mut self, blueprint: &Blueprint) -> Vec<Self> {
         let mut selves = Vec::new();
 
-        selves.extend(self.build_ore_robot(blueprint));
-        selves.extend(self.build_clay_robot(blueprint));
-        selves.extend(self.build_obsidian_robot(blueprint));
-        selves.extend(self.build_geode_robot(blueprint));
+        let mut foo = 0;
 
-        self.tick();
-        selves.push(self);
+        if self.ore_robots <= blueprint.max_ore_cost() {
+            selves.extend(self.build_ore_robot(blueprint));
+            foo += 1;
+        }
+        if self.clay_robots <= blueprint.obsidian_cost.1 {
+            selves.extend(self.build_clay_robot(blueprint));
+            foo += 1;
+        }
+        if self.obsidian_robots <= blueprint.geode_cost.1 {
+            selves.extend(self.build_obsidian_robot(blueprint));
+            foo += 1;
+        }
+        selves.extend(self.build_geode_robot(blueprint));
+        foo += 1;
+
+        if selves.len() < foo {
+            self.tick();
+            selves.push(self);
+        }
 
         selves
     }
@@ -193,7 +164,7 @@ fn part1(n: &In) -> Out {
 }
 
 fn part2(n: &In) -> Out {
-    n.iter().take(3).map(|bp| bp.max_output(32)).product()
+    n.par_iter().take(3).map(|bp| bp.max_output(32)).product()
 }
 
 util::register!(parse, part1, part2, @alt);
