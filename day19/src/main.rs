@@ -135,15 +135,15 @@ impl State {
 
         let mut foo = 0;
 
-        if self.ore_robots <= blueprint.max_ore_cost() {
+        if self.ore_robots < blueprint.max_ore_cost() {
             selves.extend(self.build_ore_robot(blueprint));
             foo += 1;
         }
-        if self.clay_robots <= blueprint.obsidian_cost.1 {
+        if self.clay_robots < blueprint.obsidian_cost.1 {
             selves.extend(self.build_clay_robot(blueprint));
             foo += 1;
         }
-        if self.obsidian_robots <= blueprint.geode_cost.1 {
+        if self.obsidian_robots < blueprint.geode_cost.1 {
             selves.extend(self.build_obsidian_robot(blueprint));
             foo += 1;
         }
