@@ -1,6 +1,9 @@
 #![cfg_attr(test, feature(test))]
 
-use std::collections::HashSet;
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, HashSet},
+};
 
 use rayon::prelude::*;
 
@@ -51,31 +54,69 @@ impl Blueprint {
         let mut states = HashSet::new();
         states.insert(State::new());
 
-        for i in 0..x {
-            println!("{i}: {}", states.len());
+        for _i in 0..x {
+            /*
+            println!("{_i}: {}", states.len());
             let mut vstates = states
-                .into_iter()
+                .into_par_iter()
                 .flat_map(|s| s.choices(self))
                 .collect::<Vec<_>>();
 
+            let foo = vstates.len();
             prune(&mut vstates);
-
+            let bar = vstates.len();
+            println!("{foo} -> {bar}");
             states = vstates.into_iter().collect();
+            */
+            states = states.into_iter().flat_map(|s| s.choices(self)).collect();
         }
 
         states.into_iter().map(|s| s.geodes).max().unwrap()
     }
 }
 
-fn prune(states: &mut Vec<State>) {
+// doesn't work
+pub fn prune(states: &mut Vec<State>) {
+    if states.iter().all(|s| s.geode_robots == 0) {
+        println!("no geodes yet");
+        return;
+    }
+
     let mut to_remove = BTreeSet::new();
     for i in 0..states.len() {
-        for j in (i + 1)..states.len() {}
+        if to_remove.contains(&i) {
+            continue;
+        }
+        for j in (i + 1)..states.len() {
+            if to_remove.contains(&j) {
+                continue;
+            }
+
+            if gt(&states[i], &states[j]) {
+                to_remove.insert(j);
+            } else if gt(&states[j], &states[i]) {
+                to_remove.insert(i);
+            }
+        }
+    }
+
+    for i in to_remove.into_iter().rev() {
+        states.remove(i);
+    }
+}
+
+// doesn't work
+fn gt(a: &State, b: &State) -> bool {
+    match (a.geodes.cmp(&b.geodes), a.geode_robots.cmp(&b.geode_robots)) {
+        (Ordering::Greater, Ordering::Greater)
+        | (Ordering::Greater, Ordering::Equal)
+        | (Ordering::Equal, Ordering::Greater) => true,
+        _ => false,
     }
 }
 
 #[derive(Default, Copy, Clone, Hash, PartialEq, Eq)]
-struct State {
+pub struct State {
     ore: N,
     clay: N,
     obsidian: N,
@@ -148,8 +189,7 @@ impl State {
 }
 
 fn part1(n: &In) -> Out {
-    //n.par_iter().map(|bp| bp.quality_level()).sum()
-    0
+    n.par_iter().map(|bp| bp.quality_level(24)).sum()
 }
 
 fn part2(n: &In) -> Out {
